@@ -1,15 +1,15 @@
-FROM node:22-alpine
+FROM node:24-slim
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install 
+RUN npm ci --only=production
 
 COPY src ./src
 
-RUN mkdir -p /data && chown node:node /data
-USER node
+# Create data directories for bot state and crypto storage
+RUN mkdir -p /data
 
 VOLUME /data
 
-CMD ["node", "src/index.js"]
+ENTRYPOINT ["node", "src/index.js"]

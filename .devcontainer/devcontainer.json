@@ -1,0 +1,62 @@
+{
+  "name": "Development Environment",
+  "image": "mcr.microsoft.com/devcontainers/base:debian",
+
+  "features": {
+    // === Shell & Common Persistence ===
+    "ghcr.io/wellcaffeinated/well-cafe/shell-setup:1": {},
+    "ghcr.io/wellcaffeinated/well-cafe/persist-zsh-history:1": {},
+
+    // === Claude Code ===
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {},
+    "ghcr.io/wellcaffeinated/well-cafe/persist-claude:1": {},
+
+    // === Language Features (uncomment what you need) ===
+    // == Rust ==
+    // "ghcr.io/devcontainers/features/rust:1": {},
+    // "ghcr.io/wellcaffeinated/well-cafe/persist-cargo:1": {},
+    // "ghcr.io/wellcaffeinated/well-cafe/persist-rust-target:1": {},
+
+    // == JavaScript/TypeScript ==
+    "ghcr.io/devcontainers/features/node:1": {"version": "lts"},
+    "ghcr.io/michidk/devcontainers-features/bun:1": {},
+    "ghcr.io/wellcaffeinated/well-cafe/persist-node-modules:1": {},
+
+    // == Python ==
+    // "ghcr.io/devcontainers/features/python:1": {"version": "3.12"},
+    // "ghcr.io/wellcaffeinated/well-cafe/persist-python-venv:1": {},
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        // Common extensions
+        "anthropic.claude-code",
+        "eamodio.gitlens",
+        "editorconfig.editorconfig",
+
+        // Rust extensions (uncomment if using Rust)
+        // "rust-lang.rust-analyzer",
+        // "fill-labs.dependi",
+        // "tamasfe.even-better-toml",
+
+        // JavaScript/TypeScript extensions (uncomment if using JS/TS)
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+
+        // Python extensions (uncomment if using Python)
+        // "ms-python.python",
+        // "charliermarsh.ruff",
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+
+        // JavaScript/TypeScript settings (uncomment if using JS/TS)
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "[javascript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        }
+      }
+    }
+  }
+}

@@ -7,6 +7,11 @@
     "start": "node src/index.js"
   },
   "dependencies": {
+    "@inquirer/prompts": "^8.2.0",
+    "@matrix-org/matrix-sdk-crypto-nodejs": "^0.4.0",
     "matrix-bot-sdk": "^0.7.1"
+  },
+  "devDependencies": {
+    "prettier": "^3.8.0"
   }
 }

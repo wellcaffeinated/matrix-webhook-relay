@@ -7,15 +7,24 @@ services:
       - HOMESERVER_URL=https://matrix.org
       - WEBHOOK_URL=http://n8n:5678/webhook/matrix-relay
       - WEBHOOK_TIMEOUT_MS=30000
-      - ACCESS_TOKEN_FILE=/run/secrets/matrix_token
+      - ACCESS_TOKEN_FILE=/run/secrets/access_token
+      - CRYPTO_STORAGE_PATH=/data/crypto
+      - USER_ID=@your-bot-username:matrix.org
+      - DEVICE_NAME=Matrix Webhook Relay Bot
+      - ALLOWED_ROOMS=!yourroomid:matrix.org,!anotherroomid:matrix.org
+    volumes:
+      - matrix-relay-data:/data
     secrets:
-      - matrix_token
+      - access_token
     networks:
       - matrix-relay-network
 
+volumes:
+  matrix-relay-data:
+
 secrets:
-  matrix_token:
-    file: ./secrets/matrix_token
+  access_token:
+    file: ./secrets/access_token
 
 networks:
   matrix-relay-network:
