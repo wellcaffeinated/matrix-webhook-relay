@@ -28,15 +28,23 @@ chmod 600 secrets/matrix_token.txt
 
 ### 4. Configure
 
+```bash
+cp docker-compose.example.yaml docker-compose.yml
+```
+
 Edit `docker-compose.yml`:
 - `HOMESERVER_URL`: Your Matrix homeserver (default: matrix.org)
 - `WEBHOOK_URL`: Your webhook endpoint
 
-### 5. Create network (if not exists)
+### 5. Create network (optional)
+
+Only needed if your webhook is in another container (e.g., n8n) on the same Docker host:
 
 ```bash
 docker network create matrix-relay-network
 ```
+
+If using an external webhook URL, remove the `networks` section from `docker-compose.yml`.
 
 ### 6. Run
 
@@ -77,6 +85,7 @@ Or plain text response body.
 | `WEBHOOK_URL` | Yes | - | Webhook URL |
 | `WEBHOOK_TIMEOUT_MS` | No | `30000` | Webhook timeout in ms |
 | `MAX_RESPONSE_LENGTH` | No | `4000` | Max reply length (truncates longer) |
+| `ROOM_ID` | No | - | Comma-separated list of allowed room IDs |
 | `ACCESS_TOKEN` | No* | - | Matrix access token |
 | `ACCESS_TOKEN_FILE` | No* | `/run/secrets/matrix_token` | Path to token file |
 

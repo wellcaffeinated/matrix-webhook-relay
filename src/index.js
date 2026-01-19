@@ -10,6 +10,7 @@ const HOMESERVER_URL = process.env.HOMESERVER_URL || "https://matrix.org";
 const WEBHOOK_URL = process.env.WEBHOOK_URL;
 const WEBHOOK_TIMEOUT_MS = parseInt(process.env.WEBHOOK_TIMEOUT_MS || "30000");
 const MAX_RESPONSE_LENGTH = parseInt(process.env.MAX_RESPONSE_LENGTH || "4000");
+const ALLOWED_ROOMS = process.env.ROOM_ID?.split(",").map((r) => r.trim()).filter(Boolean) || [];
 
 // Access token: env var or file
 function getAccessToken() {
@@ -41,6 +42,9 @@ async function main() {
   client.on("room.message", async (roomId, event) => {
     // Ignore own messages
     if (event.sender === botUserId) return;
+
+    // Only handle messages from allowed rooms
+    if (ALLOWED_ROOMS.length && !ALLOWED_ROOMS.includes(roomId)) return;
 
     // Only handle text messages
     if (event.content?.msgtype !== "m.text") return;

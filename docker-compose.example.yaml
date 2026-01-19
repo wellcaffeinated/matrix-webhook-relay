@@ -1,6 +1,6 @@
 services:
   matrix-webhook-relay:
-    build: .
+    image: ghcr.io/wellcaffeinated/matrix-webhook-relay:latest
     container_name: matrix-webhook-relay
     restart: unless-stopped
     environment:
@@ -10,17 +10,12 @@ services:
       - ACCESS_TOKEN_FILE=/run/secrets/matrix_token
     secrets:
       - matrix_token
-    volumes:
-      - bot-data:/data
     networks:
       - matrix-relay-network
 
 secrets:
   matrix_token:
-    file: ./secrets/matrix_token.txt
-
-volumes:
-  bot-data:
+    file: ./secrets/matrix_token
 
 networks:
   matrix-relay-network:

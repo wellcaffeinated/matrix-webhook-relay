@@ -2,3 +2,5 @@ node_modules/
 secrets/
 *.log
 .env
+docker-compose.yml
+docker-compose.yaml
