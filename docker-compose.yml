@@ -1,0 +1,27 @@
+services:
+  matrix-webhook-relay:
+    build: .
+    container_name: matrix-webhook-relay
+    restart: unless-stopped
+    environment:
+      - HOMESERVER_URL=https://matrix.org
+      - WEBHOOK_URL=http://n8n:5678/webhook/matrix-relay
+      - WEBHOOK_TIMEOUT_MS=30000
+      - ACCESS_TOKEN_FILE=/run/secrets/matrix_token
+    secrets:
+      - matrix_token
+    volumes:
+      - bot-data:/data
+    networks:
+      - matrix-relay-network
+
+secrets:
+  matrix_token:
+    file: ./secrets/matrix_token.txt
+
+volumes:
+  bot-data:
+
+networks:
+  matrix-relay-network:
+    external: true

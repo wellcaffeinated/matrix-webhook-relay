@@ -1,0 +1,7 @@
+node_modules/
+secrets/
+.git/
+.gitignore
+README.md
+docker-compose.yml
+*.log
