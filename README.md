@@ -76,6 +76,7 @@ Or plain text response body.
 | `HOMESERVER_URL` | No | `https://matrix.org` | Matrix homeserver URL |
 | `WEBHOOK_URL` | Yes | - | Webhook URL |
 | `WEBHOOK_TIMEOUT_MS` | No | `30000` | Webhook timeout in ms |
+| `MAX_RESPONSE_LENGTH` | No | `4000` | Max reply length (truncates longer) |
 | `ACCESS_TOKEN` | No* | - | Matrix access token |
 | `ACCESS_TOKEN_FILE` | No* | `/run/secrets/matrix_token` | Path to token file |
 

@@ -9,6 +9,7 @@ import { readFileSync, existsSync } from "fs";
 const HOMESERVER_URL = process.env.HOMESERVER_URL || "https://matrix.org";
 const WEBHOOK_URL = process.env.WEBHOOK_URL;
 const WEBHOOK_TIMEOUT_MS = parseInt(process.env.WEBHOOK_TIMEOUT_MS || "30000");
+const MAX_RESPONSE_LENGTH = parseInt(process.env.MAX_RESPONSE_LENGTH || "4000");
 
 // Access token: env var or file
 function getAccessToken() {
@@ -76,7 +77,11 @@ async function main() {
       }
 
       if (reply && reply.trim()) {
-        await client.sendText(roomId, reply.trim());
+        let text = reply.trim();
+        if (text.length > MAX_RESPONSE_LENGTH) {
+          text = text.slice(0, MAX_RESPONSE_LENGTH) + "… [truncated]";
+        }
+        await client.sendText(roomId, text);
       }
     } catch (err) {
       console.error(`Error forwarding message: ${err.message}`);
