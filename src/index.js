@@ -12,6 +12,7 @@ import {
 import { readFileSync, existsSync } from 'fs'
 import { password as promptPassword, input as promptInput } from '@inquirer/prompts';
 import { setTimeout } from 'timers/promises';
+import { createServer } from 'http';
 
 function initLogs() {
   const logLevels = {
@@ -41,6 +42,7 @@ const ALLOWED_ROOMS =
   process.env.ALLOWED_ROOMS?.split(',')
     .map((r) => r.trim())
     .filter(Boolean) || []
+const HTTP_PORT = parseInt(process.env.HTTP_PORT || '3000')
 
 const log = (...args) => {
   LogService.info('Bot', ...args)
@@ -265,6 +267,43 @@ async function joinRooms(client, allowedRooms) {
   }
 }
 
+function startHttpServer(client) {
+  const server = createServer(async (req, res) => {
+    if (req.method === 'POST' && req.url === '/send') {
+      let body = ''
+      req.on('data', chunk => { body += chunk })
+      req.on('end', async () => {
+        try {
+          const { roomId, message, eventId } = JSON.parse(body)
+          if (!roomId || !message) {
+            res.writeHead(400, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'roomId and message are required' }))
+            return
+          }
+          if (eventId) {
+            await client.replyText(roomId, { event_id: eventId }, message)
+          } else {
+            await client.sendText(roomId, message)
+          }
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ success: true }))
+        } catch (err) {
+          error(`HTTP /send error: ${err.message}`)
+          res.writeHead(500, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: err.message }))
+        }
+      })
+    } else {
+      res.writeHead(404, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Not found' }))
+    }
+  })
+  server.listen(HTTP_PORT, () => {
+    log(`HTTP server listening on port ${HTTP_PORT}`)
+  })
+  return server
+}
+
 async function main() {
   // Check if we need to login based on "login" argument
   const login = process.argv.includes('login')
@@ -327,6 +366,7 @@ async function main() {
 
   await client.start()
   await joinRooms(client, ALLOWED_ROOMS)
+  startHttpServer(client)
   log('Bot started and listening')
 }
 
