@@ -74,12 +74,17 @@ export function shouldIgnoreEvent(message, botUserId, roomId, allowedRooms) {
  * @returns {object} The webhook payload
  */
 export function buildWebhookPayload(roomId, message) {
-  const timestamp = new Date(message.origin_server_ts).toISOString()
+  let timestamp
+  try {
+    timestamp = new Date(message.timestamp).toISOString()
+  } catch {
+    timestamp = new Date().toISOString()
+  }
   return {
     room_id: roomId,
     sender: message.sender,
     message: message.textBody,
-    event_id: message.event_id,
+    event_id: message.eventId,
     timestamp,
   }
 }
