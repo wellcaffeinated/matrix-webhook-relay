@@ -12,6 +12,9 @@
     "matrix-bot-sdk": "^0.7.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "eslint": "^9.39.2",
+    "globals": "^17.0.0",
     "prettier": "^3.8.0"
   }
 }
