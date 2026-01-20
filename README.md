@@ -8,12 +8,10 @@ Forwards Matrix messages to a webhook and posts responses back.
 
 Register a new account (e.g., `@mybot:matrix.org`) or use an existing one.
 
-### 2. Get an access token
+### 2. Get an access token by running "login"
 
 ```bash
-curl -XPOST \
-  -d '{"type":"m.login.password", "user":"mybot", "password":"YOUR_PASSWORD"}' \
-  "https://matrix.org/_matrix/client/r0/login"
+docker compose run --rm ghcr.io/wellcaffeinated/matrix-webhook-relay:latest login
 ```
 
 Copy the `access_token` from the response.
@@ -22,8 +20,8 @@ Copy the `access_token` from the response.
 
 ```bash
 mkdir -p secrets
-echo "YOUR_ACCESS_TOKEN" > secrets/matrix_token.txt
-chmod 600 secrets/matrix_token.txt
+echo "YOUR_ACCESS_TOKEN" > secrets/access_token
+chmod 600 secrets/access_token
 ```
 
 ### 4. Configure
@@ -35,18 +33,9 @@ cp docker-compose.example.yaml docker-compose.yml
 Edit `docker-compose.yml`:
 - `HOMESERVER_URL`: Your Matrix homeserver (default: matrix.org)
 - `WEBHOOK_URL`: Your webhook endpoint
+- `ALLOWED_ROOMS`: List of rooms your bot should accept invitations for
 
-### 5. Create network (optional)
-
-Only needed if your webhook is in another container (e.g., n8n) on the same Docker host:
-
-```bash
-docker network create matrix-relay-network
-```
-
-If using an external webhook URL, remove the `networks` section from `docker-compose.yml`.
-
-### 6. Run
+### 5. Run
 
 ```bash
 docker compose up -d
@@ -76,23 +65,3 @@ The bot expects a response with one of these fields (checked in order):
 - `body`
 
 Or plain text response body.
-
-## Environment Variables
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `HOMESERVER_URL` | No | `https://matrix.org` | Matrix homeserver URL |
-| `WEBHOOK_URL` | Yes | - | Webhook URL |
-| `WEBHOOK_TIMEOUT_MS` | No | `30000` | Webhook timeout in ms |
-| `MAX_RESPONSE_LENGTH` | No | `4000` | Max reply length (truncates longer) |
-| `ROOM_ID` | No | - | Comma-separated list of allowed room IDs |
-| `ACCESS_TOKEN` | No* | - | Matrix access token |
-| `ACCESS_TOKEN_FILE` | No* | `/run/secrets/matrix_token` | Path to token file |
-
-*One of `ACCESS_TOKEN` or `ACCESS_TOKEN_FILE` is required.
-
-## Logs
-
-```bash
-docker compose logs -f matrix-webhook-relay
-```
