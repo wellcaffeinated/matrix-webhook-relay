@@ -167,7 +167,8 @@ export async function handleRoomMessage({
   webhookUrl,
   webhookTimeoutMs,
   maxResponseLength,
-  sendText,
+  sendText = async () => {},
+  readReceipt = async () => {},
 }) {
   if (shouldIgnoreEvent(message, botUserId, roomId, allowedRooms)) {
     log(`Ignoring message in ${roomId} from ${message.sender}`)
@@ -177,6 +178,7 @@ export async function handleRoomMessage({
   debug(`[${roomId}] ${message.sender}`, message)
 
   try {
+    await readReceipt(roomId, message.eventId)
     const payload = buildWebhookPayload(roomId, message)
     const response = await forwardToWebhook(webhookUrl, payload, webhookTimeoutMs)
 
@@ -286,8 +288,8 @@ async function main() {
   log(`E2E encryption enabled with crypto storage at ${'/data/bot_sqlite'}`)
 
   // Handle failed decryption events
-  client.on('room.failed_decryption', async (roomId, event, error) => {
-    error(`[${roomId}] Failed to decrypt message from ${event.sender}: ${error.message}`)
+  client.on('room.failed_decryption', async (roomId, event, err) => {
+    error(`[${roomId}] Failed to decrypt message from ${event.sender}: ${err.message}`)
   })
 
   client.on('room.message', async (roomId, event) => {
@@ -301,6 +303,7 @@ async function main() {
       webhookTimeoutMs: WEBHOOK_TIMEOUT_MS,
       maxResponseLength: MAX_RESPONSE_LENGTH,
       sendText: (room, text) => client.sendText(room, text),
+      readReceipt: (room, eventId) => client.sendReadReceipt(room, eventId),
     })
   })
 
