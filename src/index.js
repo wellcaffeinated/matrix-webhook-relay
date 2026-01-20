@@ -13,10 +13,23 @@ import { readFileSync, existsSync } from 'fs'
 import { password as promptPassword, input as promptInput } from '@inquirer/prompts';
 import { setTimeout } from 'timers/promises';
 
-LogService.setLogger(new RichConsoleLogger())
-LogService.setLevel(LogLevel.TRACE)
-LogService.muteModule('Metrics')
-LogService.trace = LogService.debug
+function initLogs() {
+  const logLevels = {
+    'TRACE': LogLevel.TRACE,
+    'DEBUG': LogLevel.DEBUG,
+    'INFO': LogLevel.INFO,
+    'WARN': LogLevel.WARN,
+    'ERROR': LogLevel.ERROR,
+  }
+  const levelStr = process.env.LOG_LEVEL || 'INFO'
+  const level = logLevels[levelStr.toUpperCase()] || LogLevel.INFO
+  LogService.setLogger(new RichConsoleLogger())
+  LogService.setLevel(level)
+  LogService.muteModule('Metrics')
+  LogService.trace = LogService.debug
+}
+
+initLogs()
 
 // Config from env
 const HOMESERVER_URL = process.env.HOMESERVER_URL || 'https://matrix.org'
@@ -34,6 +47,9 @@ const log = (...args) => {
 }
 const error = (...args) => {
   LogService.error('Bot', ...args)
+}
+const debug = (...args) => {
+  LogService.debug('Bot', ...args)
 }
 
 /**
@@ -54,15 +70,17 @@ export function shouldIgnoreEvent(message, botUserId, roomId, allowedRooms) {
 /**
  * Build the webhook payload from a Matrix event
  * @param {string} roomId - The room ID
- * @param {object} event - The Matrix event
+ * @param {object} message - The Matrix event
  * @returns {object} The webhook payload
  */
-export function buildWebhookPayload(roomId, event) {
+export function buildWebhookPayload(roomId, message) {
+  const timestamp = new Date(message.origin_server_ts).toISOString()
   return {
     room_id: roomId,
-    sender: event.sender,
-    message: event.content.body,
-    event_id: event.event_id,
+    sender: message.sender,
+    message: message.textBody,
+    event_id: message.event_id,
+    timestamp,
   }
 }
 
@@ -151,8 +169,7 @@ export async function handleRoomMessage({
     return
   }
 
-  const messageText = message.textBody
-  log(`[${roomId}] ${message.sender}: ${messageText}`)
+  debug(`[${roomId}] ${message.sender}`, message)
 
   try {
     const payload = buildWebhookPayload(roomId, message)
@@ -304,6 +321,12 @@ async function main() {
   await joinRooms(client, ALLOWED_ROOMS)
   log('Bot started and listening')
 }
+
+// handle sigterm
+process.on('SIGTERM', async () => {
+  log('Received SIGTERM, shutting down...')
+  process.exit(0)
+})
 
 main().catch((err) => {
   error('Fatal error:', err)
