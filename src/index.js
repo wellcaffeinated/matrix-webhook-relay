@@ -42,6 +42,7 @@ const ALLOWED_ROOMS =
   process.env.ALLOWED_ROOMS?.split(',')
     .map((r) => r.trim())
     .filter(Boolean) || []
+const TRUSTED_USER = process.env.TRUSTED_USER?.trim() || ''
 const HTTP_PORT = parseInt(process.env.HTTP_PORT || '3000')
 
 const log = (...args) => {
@@ -346,22 +347,34 @@ async function main() {
     })
   })
 
-  client.on('room.invite', async (roomId) => {
-    log(`Got invited to room ${roomId}`)
-    if (ALLOWED_ROOMS.length === 0 || ALLOWED_ROOMS.includes(roomId)) {
+  client.on('room.invite', async (roomId, event) => {
+    const inviter = event?.sender
+    log(`Got invited to room ${roomId} by ${inviter}`)
+    if (TRUSTED_USER && inviter === TRUSTED_USER) {
       try {
         await client.joinRoom(roomId)
-        log(`Joined room ${roomId} on invite`)
+        log(`Joined room ${roomId} on invite from trusted user ${inviter}`)
       } catch (err) {
         error(`Failed to join room ${roomId} on invite: ${err.message}`)
       }
     } else {
-      log(`Ignoring invite to unlisted room ${roomId}`)
+      log(`Ignoring invite to room ${roomId} - sender ${inviter} is not trusted user`)
     }
   })
 
-  client.on('space.invite', async (roomId) => {
-    log(`Got invited to space ${roomId}`)
+  client.on('space.invite', async (roomId, event) => {
+    const inviter = event?.sender
+    log(`Got invited to space ${roomId} by ${inviter}`)
+    if (TRUSTED_USER && inviter === TRUSTED_USER) {
+      try {
+        await client.joinRoom(roomId)
+        log(`Joined space ${roomId} on invite from trusted user ${inviter}`)
+      } catch (err) {
+        error(`Failed to join space ${roomId} on invite: ${err.message}`)
+      }
+    } else {
+      log(`Ignoring invite to space ${roomId} - sender ${inviter} is not trusted user`)
+    }
   })
 
   await client.start()
