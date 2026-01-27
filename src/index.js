@@ -44,6 +44,9 @@ const HTTP_PORT = parseInt(process.env.HTTP_PORT || '3000')
 const log = (...args) => {
   LogService.info('Bot', ...args)
 }
+const warn = (...args) => {
+  LogService.warn('Bot', ...args)
+}
 const error = (...args) => {
   LogService.error('Bot', ...args)
 }
@@ -51,18 +54,57 @@ const debug = (...args) => {
   LogService.debug('Bot', ...args)
 }
 
+// Panic mode state - when true, ignore ALL messages from ALL sources
+let panicModeActive = false
+
+export function isPanicMode() {
+  return panicModeActive
+}
+
+export function activatePanicMode() {
+  panicModeActive = true
+  log('PANIC MODE ACTIVATED - ignoring all messages until restart')
+}
+
 /**
  * Check if a message event should be ignored (own messages, wrong room, non-text)
  * @param {object} message - The Matrix event
  * @param {string} botUserId - The bot's user ID
  * @param {string} roomId - The room the message was sent in
+ * @param {object} options - Additional options
+ * @param {string} [options.trustedUser] - Only accept messages from this user
+ * @param {boolean} [options.panicMode] - If true, ignore all messages
  * @returns {boolean} True if the event should be ignored
  */
-export function shouldIgnoreEvent(message, botUserId, roomId) {
-  roomId
+export function shouldIgnoreEvent(message, botUserId, roomId, options = {}) {
+  const { trustedUser, panicMode, warnNoTrustedUser = () => {} } = options
+
+  if (panicMode) return true
   if (message.sender === botUserId) return true
   if (message.messageType !== 'm.text') return true
+
+  // If no trusted user is configured, ignore all messages for security
+  if (!trustedUser) {
+    warnNoTrustedUser()
+    return true
+  }
+
+  if (message.sender !== trustedUser) return true
+
   return false
+}
+
+/**
+ * Check if a message is the /panic command from the trusted user
+ * @param {object} message - The Matrix event
+ * @param {string} trustedUser - The trusted user ID
+ * @returns {boolean} True if this is a panic command from the trusted user
+ */
+export function isPanicCommand(message, trustedUser) {
+  if (!trustedUser) return false
+  if (message.sender !== trustedUser) return false
+  const text = message.textBody?.trim() || ''
+  return text.toLowerCase().startsWith('/panic')
 }
 
 /**
@@ -154,7 +196,10 @@ export async function forwardToWebhook(webhookUrl, payload, timeoutMs) {
  * @param {string} params.webhookUrl - The webhook URL
  * @param {number} params.webhookTimeoutMs - Webhook request timeout
  * @param {number} params.maxResponseLength - Maximum response length
+ * @param {string} [params.trustedUser] - Only accept messages from this user
  * @param {function} params.sendText - Function to send text to a room
+ * @param {function} params.readReceipt - Function to send read receipt
+ * @param {function} [params.onPanic] - Callback when panic mode is activated
  */
 export async function handleRoomMessage({
   roomId,
@@ -163,10 +208,23 @@ export async function handleRoomMessage({
   webhookUrl,
   webhookTimeoutMs,
   maxResponseLength,
+  trustedUser = '',
   sendText = async () => {},
   readReceipt = async () => {},
+  onPanic = () => {},
 }) {
-  if (shouldIgnoreEvent(message, botUserId, roomId)) {
+  // Check for panic command first (before shouldIgnoreEvent since panic must work even in panic mode)
+  if (isPanicCommand(message, trustedUser)) {
+    onPanic()
+    await sendText(roomId, 'PANIC MODE ACTIVATED. Ignoring all messages until restart.')
+    return
+  }
+
+  if (shouldIgnoreEvent(message, botUserId, roomId, {
+    trustedUser,
+    panicMode: isPanicMode(),
+    warnNoTrustedUser: () => warn('TRUSTED_USER not set - ignoring all messages for security'),
+  })) {
     log(`Ignoring message in ${roomId} from ${message.sender}`)
     return
   }
@@ -234,6 +292,18 @@ async function doLogin() {
   console.log('ACCESS_TOKEN', client.accessToken)
 }
 
+async function sendDmNotification(client, trustedUserId, message) {
+  if (!trustedUserId) return
+
+  try {
+    const dmRoomId = await client.dms.getOrCreateDm(trustedUserId)
+    await client.sendText(dmRoomId, message)
+    log(`Sent DM notification to ${trustedUserId}`)
+  } catch (err) {
+    error(`Failed to send DM notification: ${err.message}`)
+  }
+}
+
 // async function joinRooms(client, allowedRooms) {
 //   const rooms = await client.getJoinedRooms()
 //   for (const roomId of allowedRooms) {
@@ -264,6 +334,11 @@ async function doLogin() {
 function startHttpServer(client) {
   const server = createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/send') {
+      if (isPanicMode()) {
+        res.writeHead(503, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'Bot is in panic mode' }))
+        return
+      }
       let body = ''
       req.on('data', chunk => { body += chunk })
       req.on('end', async () => {
@@ -334,8 +409,10 @@ async function main() {
       webhookUrl: WEBHOOK_URL,
       webhookTimeoutMs: WEBHOOK_TIMEOUT_MS,
       maxResponseLength: MAX_RESPONSE_LENGTH,
+      trustedUser: TRUSTED_USER,
       sendText: (room, text) => client.sendText(room, text),
       readReceipt: (room, eventId) => client.sendReadReceipt(room, eventId),
+      onPanic: () => activatePanicMode(),
     })
   })
 
@@ -346,6 +423,7 @@ async function main() {
       try {
         await client.joinRoom(roomId)
         log(`Joined room ${roomId} on invite from trusted user ${inviter}`)
+        await sendDmNotification(client, TRUSTED_USER, `I joined room ${roomId} on your invite.`)
       } catch (err) {
         error(`Failed to join room ${roomId} on invite: ${err.message}`)
       }
@@ -359,13 +437,18 @@ async function main() {
   log('Bot started and listening')
 }
 
-// handle sigterm
-process.on('SIGTERM', async () => {
-  log('Received SIGTERM, shutting down...')
-  process.exit(0)
-})
+// Only run main when this file is executed directly (not when imported for tests)
+const isMainModule = import.meta.url === `file://${process.argv[1]}`
 
-main().catch((err) => {
-  error('Fatal error:', err)
-  process.exit(1)
-})
+if (isMainModule) {
+  // handle sigterm
+  process.on('SIGTERM', async () => {
+    log('Received SIGTERM, shutting down...')
+    process.exit(0)
+  })
+
+  main().catch((err) => {
+    error('Fatal error:', err)
+    process.exit(1)
+  })
+}
