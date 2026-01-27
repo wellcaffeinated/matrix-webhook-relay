@@ -33,7 +33,7 @@ cp docker-compose.example.yaml docker-compose.yml
 Edit `docker-compose.yml`:
 - `HOMESERVER_URL`: Your Matrix homeserver (default: matrix.org)
 - `WEBHOOK_URL`: Your webhook endpoint
-- `ALLOWED_ROOMS`: List of rooms your bot should accept invitations for
+- `TRUSTED_USER`: Matrix user ID that controls the bot (e.g., `@you:matrix.org`)
 
 ### 5. Run
 
@@ -65,3 +65,30 @@ The bot expects a response with one of these fields (checked in order):
 - `body`
 
 Or plain text response body.
+
+## Security
+
+### Trusted User
+
+The bot requires `TRUSTED_USER` to be set. Only messages from this user are forwarded to the webhook. All other messages are ignored.
+
+- **Room invites**: The bot only joins rooms when invited by the trusted user
+- **Messages**: Only messages from the trusted user are processed
+- **DM notifications**: When the bot joins a room, it sends a DM to the trusted user confirming the join
+
+If `TRUSTED_USER` is not set, the bot ignores all messages for security.
+
+### Panic Mode
+
+Send `/panic` from the trusted user to immediately lock down the bot:
+
+```
+/panic
+```
+
+When panic mode is activated:
+- All Matrix messages are ignored (from all users, including the trusted user)
+- The HTTP `/send` endpoint returns 503
+- The bot remains connected but unresponsive
+
+**To exit panic mode**: Restart the bot. This is intentional—panic mode is meant for emergencies where you need to immediately stop all bot activity.
