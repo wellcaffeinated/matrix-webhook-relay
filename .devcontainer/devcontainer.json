@@ -8,6 +8,7 @@
     "ghcr.io/wellcaffeinated/well-cafe/persist-zsh-history:1": {},
 
     // === Claude Code ===
+    "ghcr.io/devcontainers/features/node:1": { "version": "lts" },
     "ghcr.io/anthropics/devcontainer-features/claude-code:1": {},
     "ghcr.io/wellcaffeinated/well-cafe/persist-claude:1": {},
 
@@ -18,9 +19,8 @@
     // "ghcr.io/wellcaffeinated/well-cafe/persist-rust-target:1": {},
 
     // == JavaScript/TypeScript ==
-    "ghcr.io/devcontainers/features/node:1": {"version": "lts"},
     "ghcr.io/michidk/devcontainers-features/bun:1": {},
-    "ghcr.io/wellcaffeinated/well-cafe/persist-node-modules:1": {},
+    "ghcr.io/wellcaffeinated/well-cafe/persist-node-modules:1": {}
 
     // == Python ==
     // "ghcr.io/devcontainers/features/python:1": {"version": "3.12"},
