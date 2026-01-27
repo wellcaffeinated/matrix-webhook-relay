@@ -38,10 +38,6 @@ const WEBHOOK_URL = process.env.WEBHOOK_URL
 const DEVICE_NAME = process.env.DEVICE_NAME || 'Matrix Webhook Relay Bot'
 const WEBHOOK_TIMEOUT_MS = parseInt(process.env.WEBHOOK_TIMEOUT_MS || '30000')
 const MAX_RESPONSE_LENGTH = parseInt(process.env.MAX_RESPONSE_LENGTH || '4000')
-const ALLOWED_ROOMS =
-  process.env.ALLOWED_ROOMS?.split(',')
-    .map((r) => r.trim())
-    .filter(Boolean) || []
 const TRUSTED_USER = process.env.TRUSTED_USER?.trim() || ''
 const HTTP_PORT = parseInt(process.env.HTTP_PORT || '3000')
 
@@ -60,12 +56,11 @@ const debug = (...args) => {
  * @param {object} message - The Matrix event
  * @param {string} botUserId - The bot's user ID
  * @param {string} roomId - The room the message was sent in
- * @param {string[]} allowedRooms - List of allowed room IDs (empty means all rooms allowed)
  * @returns {boolean} True if the event should be ignored
  */
-export function shouldIgnoreEvent(message, botUserId, roomId, allowedRooms) {
+export function shouldIgnoreEvent(message, botUserId, roomId) {
+  roomId
   if (message.sender === botUserId) return true
-  if (allowedRooms.length && !allowedRooms.includes(roomId)) return true
   if (message.messageType !== 'm.text') return true
   return false
 }
@@ -156,7 +151,6 @@ export async function forwardToWebhook(webhookUrl, payload, timeoutMs) {
  * @param {string} params.roomId - The room ID
  * @param {object} params.message - The Matrix event
  * @param {string} params.botUserId - The bot's user ID
- * @param {string[]} params.allowedRooms - List of allowed room IDs
  * @param {string} params.webhookUrl - The webhook URL
  * @param {number} params.webhookTimeoutMs - Webhook request timeout
  * @param {number} params.maxResponseLength - Maximum response length
@@ -166,14 +160,13 @@ export async function handleRoomMessage({
   roomId,
   message,
   botUserId,
-  allowedRooms,
   webhookUrl,
   webhookTimeoutMs,
   maxResponseLength,
   sendText = async () => {},
   readReceipt = async () => {},
 }) {
-  if (shouldIgnoreEvent(message, botUserId, roomId, allowedRooms)) {
+  if (shouldIgnoreEvent(message, botUserId, roomId)) {
     log(`Ignoring message in ${roomId} from ${message.sender}`)
     return
   }
@@ -241,32 +234,32 @@ async function doLogin() {
   console.log('ACCESS_TOKEN', client.accessToken)
 }
 
-async function joinRooms(client, allowedRooms) {
-  const rooms = await client.getJoinedRooms()
-  for (const roomId of allowedRooms) {
-    if (!rooms.includes(roomId)) {
-      log(`Joining room ${roomId}`)
-      try {
-        await client.joinRoom(roomId)
-        log(`Joined room ${roomId}`)
-      } catch (err) {
-        error(`Failed to join room ${roomId}: ${err.message}`)
-      }
-    }
-  }
-  // leave unlisted rooms
-  for (const roomId of rooms) {
-    if (allowedRooms.length && !allowedRooms.includes(roomId)) {
-      log(`Leaving unlisted room ${roomId}`)
-      try {
-        await client.leaveRoom(roomId)
-        log(`Left room ${roomId}`)
-      } catch (err) {
-        error(`Failed to leave room ${roomId}: ${err.message}`)
-      }
-    }
-  }
-}
+// async function joinRooms(client, allowedRooms) {
+//   const rooms = await client.getJoinedRooms()
+//   for (const roomId of allowedRooms) {
+//     if (!rooms.includes(roomId)) {
+//       log(`Joining room ${roomId}`)
+//       try {
+//         await client.joinRoom(roomId)
+//         log(`Joined room ${roomId}`)
+//       } catch (err) {
+//         error(`Failed to join room ${roomId}: ${err.message}`)
+//       }
+//     }
+//   }
+//   // leave unlisted rooms
+//   for (const roomId of rooms) {
+//     if (allowedRooms.length && !allowedRooms.includes(roomId)) {
+//       log(`Leaving unlisted room ${roomId}`)
+//       try {
+//         await client.leaveRoom(roomId)
+//         log(`Left room ${roomId}`)
+//       } catch (err) {
+//         error(`Failed to leave room ${roomId}: ${err.message}`)
+//       }
+//     }
+//   }
+// }
 
 function startHttpServer(client) {
   const server = createServer(async (req, res) => {
@@ -338,7 +331,6 @@ async function main() {
       roomId,
       message,
       botUserId,
-      allowedRooms: ALLOWED_ROOMS,
       webhookUrl: WEBHOOK_URL,
       webhookTimeoutMs: WEBHOOK_TIMEOUT_MS,
       maxResponseLength: MAX_RESPONSE_LENGTH,
@@ -362,23 +354,7 @@ async function main() {
     }
   })
 
-  client.on('space.invite', async (roomId, event) => {
-    const inviter = event?.sender
-    log(`Got invited to space ${roomId} by ${inviter}`)
-    if (TRUSTED_USER && inviter === TRUSTED_USER) {
-      try {
-        await client.joinRoom(roomId)
-        log(`Joined space ${roomId} on invite from trusted user ${inviter}`)
-      } catch (err) {
-        error(`Failed to join space ${roomId} on invite: ${err.message}`)
-      }
-    } else {
-      log(`Ignoring invite to space ${roomId} - sender ${inviter} is not trusted user`)
-    }
-  })
-
   await client.start()
-  await joinRooms(client, ALLOWED_ROOMS)
   startHttpServer(client)
   log('Bot started and listening')
 }

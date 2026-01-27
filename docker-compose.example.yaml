@@ -10,7 +10,7 @@ services:
       - ACCESS_TOKEN_FILE=/run/secrets/access_token
       - USER_ID=@your-bot-username:matrix.org
       - DEVICE_NAME=Matrix Webhook Relay Bot
-      - ALLOWED_ROOMS=!yourroomid:matrix.org,!anotherroomid:matrix.org
+      - TRUSTED_USER=@your-trusted-user:matrix.org
       - LOG_LEVEL=debug
     volumes:
       - matrix-relay-data:/data
